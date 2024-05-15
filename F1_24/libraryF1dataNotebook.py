@@ -26,7 +26,6 @@ def obtain_information(key_info,session_key=None,driver_number=None,year=None,co
     else:
         url+=str(key_info)+'?'
         url+='year='+str(year)+'&country_code='+str(country_acronym)
-    print(url)
     response = urlopen(url)  
     data = json.loads(response.read().decode('utf-8'))
     return pd.DataFrame(data)
@@ -100,16 +99,10 @@ def show_plot(arrayDataframes,colour):
     Parameters:
     dataset: Dataset to consult
     compound:Compound to consult
-    race: Boolean parameter to determine if we are in race situation
     duration: Maximum duration to consult those laptimes below this threshold.
     """
-def obtain_data_tyres(dataset,compound,race,duration):
-    extra = ''
-    if race == False:
-        extra = ' and lap_duration <'+str(duration)
-    else:
-        extra = 'and lap_duration < '+str(duration)
-    setTyres = dataset.query('compound == @compound '+extra)
+def obtain_data_tyres(dataset,compound,duration):
+    setTyres = dataset.query('compound == @compound and lap_duration < '+str(duration))
     drivers_number = []
     set_dict = {}
     for index,row in setTyres.iterrows():
@@ -150,8 +143,7 @@ def obtainchart(xvariable,yvariable,dataset):
     Description: Function used to obtain the information about the fastest lap per driver
     Parameters:
         driver: Driver to consult
-        dataset: Dataset to consult
-        newdataset: Dataset where the data will be obtained. 
+        dataset: Dataset to consult 
     """
 def obtain_fastest_lap(driver,dataset,newdataset):
     fastest_lap = dataset.query("driver_number == @driver").lap_duration.min()
@@ -167,9 +159,9 @@ def obtain_fastest_lap(driver,dataset,newdataset):
     Description: Function used to obtain the deltas of the fastest lap of each driver
     Parameters:
         dataset: Dataset with the fastest laps
-        array: Array where the dataset will be obtained
     """
-def obtain_deltas(dataset,array):
+def obtain_deltas(dataset):
+    array = []
     fastest_lap = dataset.fastest_lap.min()
     for row in dataset.iterrows():
         lap = row[1][1]
@@ -195,7 +187,6 @@ def getinfolonglaps(dataset,driver_number,team,lap_duration_min=90,lap_duration_
     Parameters:
     row: row to consult
     reference: driver at risk
-    newdataset: []
     """
 def obtain_difference_regard_reference(row,reference,newdataset):
     difference_sector_1 = row.duration_sector_1 - reference.duration_sector_1.iloc[0]
@@ -207,9 +198,18 @@ def obtain_difference_regard_reference(row,reference,newdataset):
     newdataset =pd.concat([newdataset, pd.DataFrame([new_row])], ignore_index=True)
     return newdataset
 
-# Function done to obtain more information about the qualyfing session
-def obtainInfoAboutQualySession(dataset,fecha):
-    sessiondataset =dataset.query(fecha).sort_values(by='lap_duration')
+
+    """
+    Function: obtainInfoAboutQualySession
+    Description: Function done to obtain more information about the qualyfing session
+    Parameters:
+    dataset: Dataset to consult
+    date: date to consult
+    
+    """
+# 
+def obtainInfoAboutQualySession(dataset,date):
+    sessiondataset =dataset.query(date).sort_values(by='lap_duration')
     isFastestLap = []
     for index,row in sessiondataset.iterrows():
         driver = row.driver_number
@@ -221,28 +221,21 @@ def obtainInfoAboutQualySession(dataset,fecha):
     sessiondataset['isFastestLap'] = isFastestLap
     return sessiondataset
 
-# def obtain_session(session_key):
-#     session_key='session_key='+str(session_key)
-#     url = 'https://api.openf1.org/v1/laps?'
 
-#     urltotal = url+session_key
-
-#     response = urlopen(urltotal)
-#     data = json.loads(response.read().decode('utf-8'))
-#     return pd.DataFrame(data)
-
-# def obtainCarData(session_key,driver_number):
-#     session_key='session_key='+str(session_key)
-#     driver_number='&driver_number=11'
-#     url = "https://api.openf1.org/v1/car_data?"
-
-#     urltotal = url+session_key+driver_number
-
-#     response = urlopen(urltotal)
-#     data = json.loads(response.read().decode('utf-8'))
+def obtain_information_qualy(driver,dataset,newdataset):
+    fastest_lap = dataset.query("driver_number == @driver").lap_duration.min()
+    fastest_lap_absolute = dataset.lap_duration.min()
+    delta = fastest_lap - fastest_lap_absolute
+    st_speed = dataset.query("driver_number == @driver").st_speed.min()
+    i1_speed = dataset.query("driver_number == @driver").i1_speed.min()
+    i2_speed = dataset.query("driver_number == @driver").i2_speed.min()
+    new_row = {'driver_number':driver,'fastest_lap':fastest_lap,'delta': delta,'st_speed':st_speed,'i1_speed':i1_speed,'i2_speed':i2_speed}
+    newdataset =pd.concat([newdataset, pd.DataFrame([new_row])], ignore_index=True)
+    return newdataset
 
 if __name__ == "__main__":
-   print(obtain_information('sessions',year=2024,country_acronym='CHN'))
-   print(obtain_information('car_data',session_key=9663,driver_number=11))
-   print(obtain_information('drivers',session_key=9963))
+    print("ok")
+   #print(obtain_information('sessions',year=2024,country_acronym='CHN'))
+   #print(obtain_information('car_data',session_key=9663,driver_number=11))
+   #print(obtain_information('drivers',session_key=9963))
    
