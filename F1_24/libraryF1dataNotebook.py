@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import seaborn as sns
-
+from statistics import mode
 """
 Function: obtain_information
 Description: This function it is used to obtain the information about the different OpenF1 API that the user wants to consult.
@@ -169,7 +169,7 @@ def obtain_deltas(dataset):
         array.append(delta)
     return array
     """
-    Function: getinfolonglaps
+    Function: getinfolongruns
     Description: Fucntion used to obtain the information related to longlaps with the relevant information
     Parameters:
     dataset: Dataset with the information
@@ -178,7 +178,7 @@ def obtain_deltas(dataset):
     lap_duration_min: Low threshold considered to obtain the longlaps
     lap_duration_max: High threshold considered to obtain the longlaps
     """
-def getinfolonglaps(dataset,driver_number,team,lap_duration_min=90,lap_duration_max=95):
+def getinfolongruns(dataset,driver_number,team,lap_duration_min=90,lap_duration_max=95):
     dataset = dataset.query("is_pit_out_lap == False and driver_number == @driver_number and team_name == @team and lap_duration < @lap_duration_max and lap_duration > @lap_duration_min ")
     return dataset[['full_name','compound','date_start','lap_number','duration_sector_1','duration_sector_2','duration_sector_3','lap_duration']]
     """
@@ -232,6 +232,24 @@ def obtain_information_qualy(driver,dataset,newdataset):
     new_row = {'driver_number':driver,'fastest_lap':fastest_lap,'delta': delta,'st_speed':st_speed,'i1_speed':i1_speed,'i2_speed':i2_speed}
     newdataset =pd.concat([newdataset, pd.DataFrame([new_row])], ignore_index=True)
     return newdataset
+
+    """
+    Function: obtainLongRunData
+    Description: Function that obtain all the related data with the long runs within the ranges obtained by parameters.
+    drivers: drivers to consult
+    dataset: dataset to consult
+    min_range: minimum range
+    max_range: maximum range 
+    """
+def obtainLongRunData(drivers,dataset,min_range,max_range):
+    lap_duration_per_driver = []
+    for index,driver in drivers.iterrows():
+        longrun_data = getinfolongruns(dataset,driver.driver_number,driver.team_name,min_range,max_range)
+        if len(longrun_data) > 0:
+            longrun_name=mode(longrun_data.full_name)
+            longrun_compound=mode(longrun_data.compound)
+            lap_duration_per_driver.append([longrun_name,longrun_compound,longrun_data.lap_duration.mean(),longrun_data.duration_sector_1.mean(),longrun_data.duration_sector_2.mean(),longrun_data.duration_sector_3.mean()])
+    return lap_duration_per_driver
 
 if __name__ == "__main__":
     print("ok")
