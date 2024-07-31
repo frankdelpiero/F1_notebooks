@@ -251,6 +251,39 @@ def obtainLongRunData(drivers,dataset,min_range,max_range):
             lap_duration_per_driver.append([longrun_name,longrun_compound,longrun_data.lap_duration.mean(),longrun_data.duration_sector_1.mean(),longrun_data.duration_sector_2.mean(),longrun_data.duration_sector_3.mean()])
     return lap_duration_per_driver
 
+
+    """
+    Function: obtainMeanLongRuns
+    Description: Function that obtain the data neccesary related to the summary of the long runs. It must be in the notebook because
+    different combination can be consulted. For example, the driver who has the fastest sector 1 in long runs,etc
+    drivers: Drivers dataset
+    dataset:Dataset to consult
+    minimum_threshold: Minimum threshold of the laps
+    maximum_threshold: Maximum threshold of the laps
+    """
+def obtainMeanLongRuns(drivers,dataset,minimum_threshold,maximum_threshold):
+    long_runs_summary = pd.DataFrame()
+    for index,driver in drivers.iterrows():
+        driver_data = getinfolongruns(dataset,driver.driver_number,driver.team_name,minimum_threshold,maximum_threshold)
+        compound_data = driver_data.compound.mode()[0]
+        mean = driver_data.query("compound == @compound_data").lap_duration.mean()
+        sector1_mean = driver_data.query("compound == @compound_data").duration_sector_1.mean()
+        sector2_mean = driver_data.query("compound == @compound_data").duration_sector_2.mean()
+        sector3_mean = driver_data.query("compound == @compound_data").duration_sector_3.mean()
+        new_row = {'driver':driver.broadcast_name,'compound':compound_data,'team_name':driver.team_name,'sector1':sector1_mean,'sector2':sector2_mean,'sector3':sector3_mean,'mean_lap_time':round(mean,3)}
+        long_runs_summary = pd.concat([long_runs_summary,pd.DataFrame([new_row])],ignore_index=True)
+    return long_runs_summary
+
+    """
+    Function: showDataLongRuns
+    dataset:Dataset to consult
+    compound: Compound to consull
+    column_to_sort= Column chosen to sort the consult
+    columns_to_show = Columns to show in the consult
+    """
+def showDataLongRuns(dataset,compound,column_to_sort,columns_to_show):
+    return dataset.query("compound == @compound").sort_values(column_to_sort)[columns_to_show]
+
 if __name__ == "__main__":
     print("ok")
    #print(obtain_information('sessions',year=2024,country_acronym='CHN'))
