@@ -221,7 +221,12 @@ def obtainInfoAboutQualySession(dataset,date):
     sessiondataset['isFastestLap'] = isFastestLap
     return sessiondataset
 
-
+    """
+    Function: obtain_information_qualy
+    Description: Function to obtain information about each driver with a comparaison versus the poleman
+    driver: Driver to consult
+    newdataset = Dataset to save the data.
+    """
 def obtain_information_qualy(driver,dataset,newdataset):
     fastest_lap = dataset.query("driver_number == @driver").lap_duration.min()
     fastest_lap_absolute = dataset.lap_duration.min()
@@ -283,6 +288,72 @@ def obtainMeanLongRuns(drivers,dataset,minimum_threshold,maximum_threshold):
     """
 def showDataLongRuns(dataset,compound,column_to_sort,columns_to_show):
     return dataset.query("compound == @compound").sort_values(column_to_sort)[columns_to_show]
+
+
+    """
+    Function:qualyfing_prediction
+    Description: With the datasets given, a qualyfing prediction will be obtained.
+    datasets: Datasets to check
+    drivers: Driver dataset associated to the sesssion
+    quantile_sector_1 = Threshold sector 1
+    quantile_sector_2 = Threshold sector 2
+    quantile_sector_3 = Threshold sector 3
+    """
+def qualyfing_prediction(datasets,drivers,quantile_sector_1=0.1,quantile_sector_2=0.12,quantile_sector_3=0.1):
+    teams_dict = {}
+    #datasets = [jointablesfreepractice1,jointablesfreepractice2]
+    # For each dataset of each session   
+    for dataset in datasets:
+        for team in pd.unique(drivers.team_name):
+            if team not in teams_dict:
+                teams_dict[team]  = []
+            threshold_sector1 = dataset.query("team_name == @team").duration_sector_1.quantile(quantile_sector_1)
+            threshold_sector2 = dataset.query("team_name == @team").duration_sector_2.quantile(0.12)
+            threshold_sector3 = dataset.query("team_name == @team").duration_sector_3.quantile(0.1)
+    
+            sector1= dataset.query("team_name == @team and duration_sector_1 <=  @threshold_sector1").duration_sector_1.values.mean()
+            sector2 = dataset.query("team_name == @team and duration_sector_2 <=  @threshold_sector2").duration_sector_2.values.mean()
+            sector3 = dataset.query("team_name == @team and duration_sector_3 <=  @threshold_sector3").duration_sector_3.values.mean()
+
+            teams_dict[team].append(sector1)
+            teams_dict[team].append(sector2)
+            teams_dict[team].append(sector3)
+
+    qualy_simulation = pd.DataFrame()
+    for team in teams_dict:
+        new_row = {'team':team,'qualy_lap_time':sum(teams_dict[team])/2,
+                'mean_sector_1':(teams_dict[team][0]+ teams_dict[team][3])/2,
+                'mean_sector_2':(teams_dict[team][1]+ teams_dict[team][4])/2,
+                'mean_sector_3':(teams_dict[team][2]+ teams_dict[team][5])/2,
+                }
+        qualy_simulation =pd.concat([qualy_simulation, pd.DataFrame([new_row])], ignore_index=True)
+    return qualy_simulation
+    """
+    Function_ race_prediction
+    Description: According to the free practice dataset and the threshold given, the race pace will be obtained
+    free_practice : Free Practice to check
+    drivers: Driver dataset
+    minimum_threshold = Minimum threshold
+    maximum_threshold = Maximum threshold
+    """
+def race_prediction(free_practice,drivers,minimum_threshold,maximum_threshold):
+    race_simulation = pd.DataFrame()
+    for index,data in drivers.iterrows():
+        datalongrun = getinfolongruns(free_practice,data.driver_number,data.team_name,minimum_threshold,maximum_threshold) 
+        mean_sector_1 = datalongrun.duration_sector_1.mean()
+        mean_sector_2 = datalongrun.duration_sector_2.mean()
+        mean_sector_3 = datalongrun.duration_sector_3.mean()
+        mean_lap_duration = datalongrun.lap_duration.mean()
+        new_row = {'team':data.team_name,
+        'mean_lap_duration':mean_lap_duration,
+        'mean_sector_1':mean_sector_1,
+        'mean_sector_2':mean_sector_2,
+        'mean_sector_3':mean_sector_3,
+        }
+        race_simulation =pd.concat([race_simulation, pd.DataFrame([new_row])], ignore_index=True)
+
+    return race_simulation.sort_values(by='mean_lap_duration')
+
 
 if __name__ == "__main__":
     print("ok")
