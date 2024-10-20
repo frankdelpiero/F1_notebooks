@@ -6,6 +6,11 @@ import numpy as np
 from matplotlib import pyplot as plt
 import seaborn as sns
 from statistics import mode
+
+# Fast F1 libraries
+import fastf1 as ff1
+from fastf1 import utils
+
 """
 Function: obtain_information
 Description: This function it is used to obtain the information about the different OpenF1 API that the user wants to consult.
@@ -270,13 +275,14 @@ def obtainMeanLongRuns(drivers,dataset,minimum_threshold,maximum_threshold):
     long_runs_summary = pd.DataFrame()
     for index,driver in drivers.iterrows():
         driver_data = getinfolongruns(dataset,driver.driver_number,driver.team_name,minimum_threshold,maximum_threshold)
-        compound_data = driver_data.compound.mode()[0]
-        mean = driver_data.query("compound == @compound_data").lap_duration.mean()
-        sector1_mean = driver_data.query("compound == @compound_data").duration_sector_1.mean()
-        sector2_mean = driver_data.query("compound == @compound_data").duration_sector_2.mean()
-        sector3_mean = driver_data.query("compound == @compound_data").duration_sector_3.mean()
-        new_row = {'driver':driver.broadcast_name,'compound':compound_data,'team_name':driver.team_name,'sector1':sector1_mean,'sector2':sector2_mean,'sector3':sector3_mean,'mean_lap_time':round(mean,3)}
-        long_runs_summary = pd.concat([long_runs_summary,pd.DataFrame([new_row])],ignore_index=True)
+        if len(driver_data) != 0:
+            compound_data = driver_data.compound.mode()[0]
+            mean = driver_data.query("compound == @compound_data").lap_duration.mean()
+            sector1_mean = driver_data.query("compound == @compound_data").duration_sector_1.mean()
+            sector2_mean = driver_data.query("compound == @compound_data").duration_sector_2.mean()
+            sector3_mean = driver_data.query("compound == @compound_data").duration_sector_3.mean()
+            new_row = {'driver':driver.broadcast_name,'compound':compound_data,'team_name':driver.team_name,'sector1':sector1_mean,'sector2':sector2_mean,'sector3':sector3_mean,'mean_lap_time':round(mean,3)}
+            long_runs_summary = pd.concat([long_runs_summary,pd.DataFrame([new_row])],ignore_index=True)
     return long_runs_summary
 
     """
@@ -353,6 +359,43 @@ def race_prediction(free_practice,drivers,minimum_threshold,maximum_threshold):
         race_simulation =pd.concat([race_simulation, pd.DataFrame([new_row])], ignore_index=True)
 
     return race_simulation.sort_values(by='mean_lap_duration')
+
+    """
+    Function_ draw_gap
+    Description: In this function I will obtain the gap in order to watch a comparaison among the driver at risk
+    with the drivers that were eliminated in this session(Q1,Q2)
+    To Q3, poleman will be the reference with the rest of drivers.
+    Also, this function can be used to compare two or more drivers. To do this, it is neccesary to put the driver that you want
+    to compare in driver position at risk alongside his position in position min.
+    driver_at_risk: Diriver to compare
+    drivers: Driver dataset
+    position_min: Minimim position to compare
+   position_max: Maximim position to compare
+   dataset: Dataset that contains information about the laps of the session
+   session: Fast F1 session
+    """
+def draw_gap(driver_at_risk,position_min,position_max,dataset,drivers,session):
+    fastest_lap_session_qualyfing = []
+    name_acronym_reference = []
+    # It is necesary to take the reference of the driver that finished P10 in this session.
+    driver_risk = session.laps.pick_driver(driver_at_risk.name_acronym.to_string(index=False)).query("LapTimeSeconds=="+driver_at_risk.lap_duration.to_string(index=False))
+ 
+
+    #Take the reference of the eliminated drivers.
+    for index,row in dataset[position_min:position_max].iterrows():
+        bestlap_qualyfing_driver = session.laps.pick_driver(row.name_acronym).pick_fastest()
+        name_acronym_reference.append(bestlap_qualyfing_driver.Driver)
+        delta_time, ref_tel, compare_tel = utils.delta_time(driver_risk,bestlap_qualyfing_driver)
+        fastest_lap_session_qualyfing.append(delta_time)
+    fastest_lap_session_qualyfing.append(np.zeros(len(delta_time)))
+    name_acronym_reference.append(driver_risk.Driver.to_string(index=False))
+    fig, ax = plt.subplots()
+    count = 0
+    for row in (name_acronym_reference):
+        ax.plot(ref_tel['Distance'], fastest_lap_session_qualyfing[count], '--',label=row,color = "#"+drivers.query("name_acronym=='"+row+"'").team_colour.to_string(index=False) )
+        ax.legend(loc=0)
+        count+=1
+    plt.show()
 
 
 if __name__ == "__main__":
